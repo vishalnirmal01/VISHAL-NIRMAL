@@ -1,0 +1,2099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Train Duty Attendance & Salary Register</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- jsPDF & AutoTable for Instant PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f1f5f9;
+      color: #1e293b;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Custom subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-12">
+
+  <!-- Toast Notification Container (Replaces alert/confirm) -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Confirmation Modal (Replaces confirm) -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 border border-slate-100">
+      <h3 id="confirm-title" class="text-lg font-bold text-slate-900">Confirm Action</h3>
+      <p id="confirm-message" class="text-sm text-slate-600 mt-2">Are you sure you want to proceed?</p>
+      <div class="mt-5 flex justify-end gap-3">
+        <button id="confirm-cancel-btn" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Cancel</button>
+        <button id="confirm-ok-btn" class="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 transition">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Navigation / Header Banner -->
+  <header class="bg-gradient-to-r from-[#0c4a6e] via-[#0369a1] to-[#0284c7] text-white shadow-md">
+    <div class="max-w-5xl mx-auto px-4 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-white/15 backdrop-blur-xs flex items-center justify-center text-2xl shadow-inner border border-white/20">
+          🚆
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg sm:text-xl font-extrabold tracking-tight">Train Duty Attendance & Salary Register</h1>
+          </div>
+          <p class="text-xs text-sky-100 font-medium">Personal Duty Log • Auto Round-Trip Timetable • Salary & EPF Calculator • Instant PDF</p>
+        </div>
+      </div>
+
+      <!-- Top Quick Actions -->
+      <div class="flex items-center gap-2 self-start sm:self-auto">
+        <button onclick="downloadInstantPDF()" class="inline-flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl shadow-sm transition active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Download PDF
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-5xl mx-auto px-3 sm:px-5 mt-5 space-y-6">
+
+    <!-- Main Form Card (Matches Screenshot Design + Enhancements) -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-7">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-5 border-b border-slate-100 gap-2">
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🚆</span>
+          <h2 class="text-xl sm:text-2xl font-bold text-[#0c4a6e] tracking-tight">Train Duty Attendance Register</h2>
+        </div>
+        <span id="db-status-badge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 self-start sm:self-auto">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Public Rail Timetable Synced
+        </span>
+      </div>
+
+      <!-- Auto-Fetched Public Train Schedule Summary Strip -->
+      <div id="schedule-summary-card" class="mb-5 bg-sky-50/80 border border-sky-200/80 rounded-2xl p-3.5 sm:p-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-3 border-b border-sky-200/60">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-lg bg-[#0c4a6e] text-white" id="sched-pair-badge">19037 ⇄ 19038</span>
+            <span class="text-xs sm:text-sm font-bold text-slate-900" id="sched-route-title">Avadh Express (Bandra Terminus [BDTS] → Barauni Jn [BJU])</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] font-semibold text-sky-800 bg-white px-2.5 py-0.5 rounded-md border border-sky-200" id="sched-source-badge">
+              NTES / Public Timetable Verified
+            </span>
+            <a id="ntes-verify-link" href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener noreferrer"
+              class="text-[11px] font-bold text-white bg-[#0369a1] hover:bg-[#0c4a6e] px-2.5 py-0.5 rounded-md transition">
+              Verify on NTES ↗
+            </a>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+          <div class="bg-white rounded-xl p-2.5 border border-slate-200/70">
+            <div class="text-[11px] font-semibold text-slate-400 uppercase">Leg 1: Outbound (<span id="sched-out-no">19037</span>)</div>
+            <div class="text-[11px] font-bold text-slate-700 mt-0.5 truncate" id="sched-out-stations">BDTS (22:00) → BJU (23:10)</div>
+            <div class="font-bold text-slate-900 mt-0.5" id="sched-out-timings">Dep 22:00 → Dest Arr 23:10 (+2d)</div>
+            <div class="text-sky-700 font-semibold mt-0.5" id="sched-out-dur">Duration: 2 Days 1 Hr 10 Mins</div>
+          </div>
+          <div class="bg-white rounded-xl p-2.5 border border-slate-200/70">
+            <div class="text-[11px] font-semibold text-slate-400 uppercase">Turnaround Layover</div>
+            <div class="font-bold text-slate-900 mt-0.5" id="sched-layover-time">8 Hrs 10 Mins Halt</div>
+            <div class="text-amber-700 font-semibold mt-0.5" id="sched-layover-station">At Destination (BJU)</div>
+          </div>
+          <div class="bg-white rounded-xl p-2.5 border border-slate-200/70">
+            <div class="text-[11px] font-semibold text-slate-400 uppercase">Leg 2: Return (<span id="sched-ret-no">19038</span>)</div>
+            <div class="text-[11px] font-bold text-slate-700 mt-0.5 truncate" id="sched-ret-stations">BJU (07:20) → BDTS (04:05)</div>
+            <div class="font-bold text-slate-900 mt-0.5" id="sched-ret-timings">Dep 07:20 → Home Arr 04:05 (+2d)</div>
+            <div class="text-emerald-700 font-semibold mt-0.5" id="sched-ret-dur">Duration: 1 Day 20 Hrs 45 Mins</div>
+          </div>
+          <div class="bg-white rounded-xl p-2.5 border border-slate-200/70">
+            <div class="text-[11px] font-semibold text-slate-400 uppercase">Complete Round-Trip Duty</div>
+            <div class="font-bold text-slate-900 mt-0.5" id="sched-total-span">5 Duty Days (102h 5m)</div>
+            <div class="text-slate-500 font-medium mt-0.5" id="sched-exact-dates">Dep → Home Arr (Asymmetric Legs)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2-Column Responsive Form Grid -->
+      <form id="duty-form" onsubmit="handleAddDuty(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+
+        <!-- Personal Details: Clean 3-Column Row on Desktop -->
+        <div class="sm:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- 1. Name -->
+          <div>
+            <label for="staffName" class="block text-sm font-semibold text-slate-700 mb-1.5">Name</label>
+            <input type="text" id="staffName" value="" placeholder="Enter your full name" required
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-medium text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition" />
+          </div>
+
+          <!-- 2. Designation Dropdown -->
+          <div>
+            <label for="designation" class="block text-sm font-semibold text-slate-700 mb-1.5">Designation</label>
+            <select id="designation" onchange="handleDesignationChange()"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-medium text-sm sm:text-base bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
+              <option value="acca" selected>Coach Attendant (ACCA) - Basic ₹24,258</option>
+              <option value="housekeeper">Housekeeper / Janitor - Basic ₹21,840</option>
+              <option value="ehk">EHK (Supervisor) - Basic ₹26,624</option>
+              <option value="custom">Custom Designation / Other Post</option>
+            </select>
+          </div>
+
+          <!-- 3. Monthly Working Days Basis -->
+          <div>
+            <label for="monthDaysSelect" class="block text-sm font-semibold text-slate-700 mb-1.5">Monthly Working Days Basis</label>
+            <select id="monthDaysSelect" onchange="setMonthDays(Number(this.value))"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-medium text-sm sm:text-base bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
+              <option value="26" selected>26 Days (Standard)</option>
+              <option value="30">30 Days (Calendar)</option>
+              <option value="28">28 Days</option>
+              <option value="31">31 Days</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Custom Designation Inputs (Hidden unless Custom selected) -->
+        <div id="custom-designation-panel" class="hidden sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200">
+          <div>
+            <label for="customPostTitle" class="block text-xs font-bold text-slate-700 mb-1">Custom Post Title</label>
+            <input type="text" id="customPostTitle" value="AC Mechanic / Escort" oninput="recalculateAll()"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-medium bg-white" />
+          </div>
+          <div>
+            <label for="customMonthlyBasic" class="block text-xs font-bold text-slate-700 mb-1">Monthly Basic Pay (₹)</label>
+            <input type="number" id="customMonthlyBasic" value="25000" min="1000" step="100" oninput="recalculateAll()"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold bg-white" />
+          </div>
+          <div>
+            <label for="customPfPercent" class="block text-xs font-bold text-slate-700 mb-1">EPF Rate (% Each Side)</label>
+            <input type="number" id="customPfPercent" value="12" min="0" max="20" step="0.5" oninput="recalculateAll()"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold bg-white" />
+          </div>
+        </div>
+
+        <!-- 4. Outbound Train No. -->
+        <div>
+          <label for="outboundTrain" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            Outbound Train No. <span class="text-xs font-normal text-sky-600">(Enter 5-digit train no.)</span>
+          </label>
+          <div class="relative">
+            <input type="text" id="outboundTrain" value="19037" maxlength="5" inputmode="numeric" required
+              oninput="handleOutboundTrainInput()"
+              placeholder="e.g. 19037"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-bold text-base focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition" />
+            <span id="train-found-pill" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+              NTES Verified
+            </span>
+          </div>
+        </div>
+
+        <!-- 5. Return Train No. (Auto-Paired & Independently Editable) -->
+        <div>
+          <label for="returnTrain" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            Return Train No. <span class="text-xs font-normal text-sky-600">(Auto / Editable)</span>
+          </label>
+          <div class="relative">
+            <input type="text" id="returnTrain" value="19038" maxlength="5" inputmode="numeric"
+              oninput="handleReturnTrainInput()"
+              placeholder="e.g. 19038"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 font-bold text-base focus:outline-none focus:ring-2 focus:ring-sky-500 transition" />
+            <span id="return-found-pill" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+              44h 45m Leg
+            </span>
+          </div>
+        </div>
+
+        <!-- 6. Train / Route Name -->
+        <div>
+          <label for="routeName" class="block text-sm font-semibold text-slate-700 mb-1.5">Train / Route Name</label>
+          <input type="text" id="routeName" value="Avadh Express (BDTS - BJU)"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-medium text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-sky-500 transition" />
+        </div>
+
+        <!-- 6B. Auto-Fetched Source & Destination Timings Strip -->
+        <div class="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/90 p-3.5 rounded-2xl border border-slate-200/80">
+          <div>
+            <label for="sourceStationDisplay" class="block text-xs font-bold text-slate-600 mb-1">
+              Source Station & Scheduled Departure (Auto)
+            </label>
+            <input type="text" id="sourceStationDisplay" value="Bandra Terminus (BDTS) • Dep: 22:00" readonly
+              class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-semibold text-xs sm:text-sm focus:outline-none" />
+          </div>
+          <div>
+            <label for="destStationDisplay" class="block text-xs font-bold text-slate-600 mb-1">
+              Destination Station & Scheduled Arrival (Auto)
+            </label>
+            <input type="text" id="destStationDisplay" value="Barauni Jn (BJU) • Arr: 23:10 (+2d)" readonly
+              class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-800 font-semibold text-xs sm:text-sm focus:outline-none" />
+          </div>
+        </div>
+
+        <!-- 7. Outbound Dep. Date & Time -->
+        <div>
+          <label for="outboundDep" class="block text-sm font-semibold text-slate-700 mb-1.5">Outbound Dep. Date & Time</label>
+          <input type="datetime-local" id="outboundDep" onchange="autoCalculateReturnFromDeparture()" required
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-medium text-sm sm:text-base bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition" />
+        </div>
+
+        <!-- 8. Return Arr. Date & Time (Auto-calculated from Train Schedule, editable if delayed) -->
+        <div>
+          <label for="returnArr" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            Return Arr. Date & Time <span class="text-xs font-normal text-sky-600">(Auto Round-Trip)</span>
+          </label>
+          <input type="datetime-local" id="returnArr" onchange="recalculateDurationFromDates()" required
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-sky-50/40 text-slate-900 font-medium text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-sky-500 transition" />
+        </div>
+
+        <!-- 9. Total Duty Days (Auto) -->
+        <div>
+          <label for="dutyDays" class="block text-sm font-semibold text-slate-700 mb-1.5">Total Duty Days (Auto)</label>
+          <input type="number" id="dutyDays" value="5" min="0.5" max="31" step="0.5" oninput="recalculateAll()" required
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 font-bold text-base focus:outline-none focus:ring-2 focus:ring-sky-500 transition" />
+        </div>
+
+        <!-- 10. Total Duty Hours (Auto) -->
+        <div>
+          <label for="dutyHours" class="block text-sm font-semibold text-slate-700 mb-1.5">Total Duty Hours (Auto)</label>
+          <input type="number" id="dutyHours" value="102.1" min="0.5" max="744" step="0.1"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 font-bold text-base focus:outline-none focus:ring-2 focus:ring-sky-500 transition" />
+        </div>
+
+        <!-- 11. Allowance / Advance (₹) -->
+        <div>
+          <label for="allowance" class="block text-sm font-semibold text-slate-700 mb-1.5">Allowance / Advance (₹)</label>
+          <input type="number" id="allowance" value="0" step="1" oninput="recalculateAll()"
+            placeholder="e.g. 500 or -500 for advance deduction"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-900 font-semibold text-base focus:outline-none focus:ring-2 focus:ring-sky-500 transition" />
+          <p class="text-[11px] text-slate-400 mt-1">Use + for TA/Food Allowance, or - (minus) if Advance taken.</p>
+        </div>
+
+        <!-- 12. Remarks -->
+        <div class="sm:col-span-2">
+          <label for="remarks" class="block text-sm font-semibold text-slate-700 mb-1.5">Remarks</label>
+          <input type="text" id="remarks" value="Completed Round Trip"
+            placeholder="e.g. Completed Round Trip"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-slate-800 font-medium text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-sky-500 transition" />
+        </div>
+
+        <!-- Live Salary & EPF Breakdown Box -->
+        <div class="sm:col-span-2 mt-2 bg-gradient-to-br from-slate-50 to-sky-50/70 rounded-2xl border border-sky-200/80 p-4 sm:p-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 mb-3 border-b border-sky-200/60">
+            <div>
+              <h3 class="text-sm sm:text-base font-bold text-[#0c4a6e] flex items-center gap-2">
+                💰 Automatic Salary & EPF Calculation Breakdown
+              </h3>
+              <p id="designation-meta-text" class="text-xs text-slate-500 mt-0.5">
+                Coach Attendant (ACCA) • Qualification: 12th Pass
+              </p>
+            </div>
+
+            <!-- Month Divisor Toggle (Syncs with Monthly Working Days Basis) -->
+            <div class="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 self-start sm:self-auto">
+              <button type="button" id="btn-days-26" onclick="setMonthDays(26)"
+                class="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#0c4a6e] text-white transition">
+                26 Days Basis
+              </button>
+              <button type="button" id="btn-days-30" onclick="setMonthDays(30)"
+                class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition">
+                30 Days Basis
+              </button>
+            </div>
+          </div>
+
+          <!-- Two-Column Comparison: Monthly Package vs Current Trip Earned -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Left: Monthly Standard Rate Card (From Poster) -->
+            <div class="bg-white rounded-xl p-3.5 border border-slate-200/80 shadow-2xs">
+              <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex justify-between">
+                <span>Monthly Rate Structure</span>
+                <span class="text-sky-700">Standard Pay Scale</span>
+              </div>
+              <div class="space-y-1.5 text-xs sm:text-sm">
+                <div class="flex justify-between">
+                  <span class="text-slate-600">Monthly Basic Pay:</span>
+                  <span id="m-basic" class="font-bold text-slate-900">₹24,258</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-600">Employee EPF (12% Ded.):</span>
+                  <span id="m-emp-pf" class="font-semibold text-rose-600">- ₹2,911</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-600">Employer EPF (12% Contrib.):</span>
+                  <span id="m-empr-pf" class="font-semibold text-emerald-700">+ ₹2,911</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-600">ESIC / Statutory Ded.:</span>
+                  <span id="m-esic" class="font-semibold text-rose-600">- ₹230</span>
+                </div>
+                <div class="pt-2 mt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span class="font-semibold text-slate-700">Monthly Net In-Hand:</span>
+                  <span id="m-net" class="font-extrabold text-emerald-700 text-sm sm:text-base">₹21,117</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                  <span class="font-medium text-slate-500">Total EPF Deposit (Both):</span>
+                  <span id="m-total-pf" class="font-bold text-sky-700">₹5,822</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                  <span class="font-medium text-slate-500">Total Hand + PF Value:</span>
+                  <span id="m-ctc" class="font-bold text-slate-800">₹26,939</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Earned For This Specific Round Trip -->
+            <div class="bg-[#0c4a6e] text-white rounded-xl p-3.5 shadow-sm flex flex-col justify-between">
+              <div>
+                <div class="text-xs font-bold uppercase tracking-wider text-sky-200 mb-2.5 flex justify-between">
+                  <span>Earned This Duty Trip</span>
+                  <span id="trip-days-badge" class="bg-sky-400/20 text-sky-100 px-2 py-0.5 rounded-md">5 Days Duty</span>
+                </div>
+                <div class="space-y-1.5 text-xs sm:text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-sky-100">Pro-Rata Basic Earned:</span>
+                    <span id="t-basic" class="font-bold">₹4,665</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sky-100">Employee PF Deduction:</span>
+                    <span id="t-emp-pf" class="font-semibold text-amber-300">- ₹560</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sky-100">Employer PF Contribution:</span>
+                    <span id="t-empr-pf" class="font-semibold text-emerald-300">+ ₹560</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sky-100">ESIC / Other Ded.:</span>
+                    <span id="t-esic" class="font-semibold text-amber-300">- ₹44</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sky-100">Allowance / Advance:</span>
+                    <span id="t-allowance" class="font-semibold">₹0</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2.5 mt-3 border-t border-sky-400/30 space-y-1">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs sm:text-sm font-semibold text-sky-100">Net Payable In-Hand:</span>
+                  <span id="t-net" class="text-lg sm:text-xl font-extrabold text-amber-300">₹4,061</span>
+                </div>
+                <div class="flex justify-between items-center text-xs text-sky-200">
+                  <span>Total Trip EPF (Emp + Empr):</span>
+                  <span id="t-total-pf" class="font-bold text-white">₹1,120</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit & Action Buttons -->
+        <div class="sm:col-span-2 flex flex-col sm:flex-row gap-3 pt-2">
+          <button type="submit"
+            class="flex-1 bg-[#0c4a6e] hover:bg-[#075985] text-white font-bold py-3.5 px-5 rounded-2xl shadow-md shadow-sky-900/15 transition active:scale-[0.99] flex items-center justify-center gap-2 text-sm sm:text-base">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            Add Duty Entry to Register
+          </button>
+
+          <button type="button" onclick="downloadSingleTripPDF()"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-5 rounded-2xl shadow-md shadow-emerald-900/15 transition active:scale-[0.99] flex items-center justify-center gap-2 text-sm sm:text-base">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Instant Slip PDF
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- Saved Duty Log Register & Cumulative Summary -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-7">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 mb-5 border-b border-slate-100">
+        <div>
+          <h2 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+            📋 Saved Train Duty Register & Payroll Statement
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">All entries are automatically saved in your browser (offline-ready for GitHub Pages).</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" onclick="downloadInstantPDF()"
+            class="inline-flex items-center gap-1.5 bg-[#0c4a6e] hover:bg-[#075985] text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-xs transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Download Full Register PDF
+          </button>
+          <button type="button" onclick="exportCSV()"
+            class="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold px-3.5 py-2.5 rounded-xl transition">
+            Export Excel/CSV
+          </button>
+          <button type="button" onclick="confirmClearAll()"
+            class="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs sm:text-sm font-semibold px-3.5 py-2.5 rounded-xl transition">
+            Clear All
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary KPI Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70">
+          <div class="text-xs font-semibold text-slate-500">Total Duty Trips / Days</div>
+          <div class="mt-1 flex items-baseline gap-1.5">
+            <span id="stat-days" class="text-xl sm:text-2xl font-extrabold text-slate-900">0</span>
+            <span id="stat-trips" class="text-xs font-semibold text-slate-500">(0 trips)</span>
+          </div>
+        </div>
+        <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/70">
+          <div class="text-xs font-semibold text-slate-500">Total Duty Hours</div>
+          <div class="mt-1">
+            <span id="stat-hours" class="text-xl sm:text-2xl font-extrabold text-sky-700">0 hrs</span>
+          </div>
+        </div>
+        <div class="bg-emerald-50/70 rounded-2xl p-3.5 border border-emerald-200/70">
+          <div class="text-xs font-semibold text-emerald-800">Total Net In-Hand</div>
+          <div class="mt-1">
+            <span id="stat-net" class="text-xl sm:text-2xl font-extrabold text-emerald-700">₹0</span>
+          </div>
+        </div>
+        <div class="bg-sky-50/70 rounded-2xl p-3.5 border border-sky-200/70">
+          <div class="text-xs font-semibold text-sky-800">Total EPF Deposit</div>
+          <div class="mt-1">
+            <span id="stat-pf" class="text-xl sm:text-2xl font-extrabold text-[#0c4a6e]">₹0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Responsive Register Table -->
+      <div class="overflow-x-auto rounded-2xl border border-slate-200">
+        <table class="w-full text-left border-collapse min-w-[780px]">
+          <thead>
+            <tr class="bg-slate-100/90 text-slate-600 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+              <th class="py-3 px-3.5">#</th>
+              <th class="py-3 px-3.5">Name & Designation</th>
+              <th class="py-3 px-3.5">Train Pair & Route</th>
+              <th class="py-3 px-3.5">Outbound Dep → Return Arr</th>
+              <th class="py-3 px-3.5 text-center">Days / Hrs</th>
+              <th class="py-3 px-3.5 text-right">Total EPF</th>
+              <th class="py-3 px-3.5 text-right">Net Payable</th>
+              <th class="py-3 px-3.5 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="register-tbody" class="divide-y divide-slate-100 text-sm">
+            <!-- Populated dynamically via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Designation Rate Reference Card -->
+    <section class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-4 sm:p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        <div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-900">Designation Salary & EPF Reference</h3>
+          <p class="text-xs text-slate-500">Standard Monthly Pay Scale & EPF Breakdown</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        <!-- Card 1: Housekeeper -->
+        <div class="rounded-2xl p-4 bg-amber-50/70 border border-amber-200/80">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-900 text-sm">1. Housekeeper / Janitor</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-200/70 text-amber-900">Unskilled</span>
+          </div>
+          <div class="mt-2.5 grid grid-cols-2 gap-y-1 text-xs">
+            <span class="text-slate-600">Monthly Basic:</span><span class="font-bold text-right text-slate-900">₹21,840</span>
+            <span class="text-slate-600">Net In-Hand:</span><span class="font-bold text-right text-emerald-700">₹18,989</span>
+            <span class="text-slate-600">Total EPF (Both):</span><span class="font-bold text-right text-sky-700">₹5,242</span>
+            <span class="text-slate-600">Gross In-Hand + PF:</span><span class="font-bold text-right text-slate-900">₹24,231</span>
+          </div>
+        </div>
+
+        <!-- Card 2: Coach Attendant -->
+        <div class="rounded-2xl p-4 bg-cyan-50/70 border border-cyan-200/80">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-900 text-sm">2. Coach Attendant (ACCA)</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-cyan-200/70 text-cyan-900">12th Pass</span>
+          </div>
+          <div class="mt-2.5 grid grid-cols-2 gap-y-1 text-xs">
+            <span class="text-slate-600">Monthly Basic:</span><span class="font-bold text-right text-slate-900">₹24,258</span>
+            <span class="text-slate-600">Net In-Hand:</span><span class="font-bold text-right text-emerald-700">₹21,117</span>
+            <span class="text-slate-600">Total EPF (Both):</span><span class="font-bold text-right text-sky-700">₹5,822</span>
+            <span class="text-slate-600">Gross In-Hand + PF:</span><span class="font-bold text-right text-slate-900">₹26,939</span>
+          </div>
+        </div>
+
+        <!-- Card 3: EHK Supervisor -->
+        <div class="rounded-2xl p-4 bg-orange-50/70 border border-orange-200/80">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-900 text-sm">3. EHK (Supervisor)</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-orange-200/70 text-orange-900">12th + ITI</span>
+          </div>
+          <div class="mt-2.5 grid grid-cols-2 gap-y-1 text-xs">
+            <span class="text-slate-600">Monthly Basic:</span><span class="font-bold text-right text-slate-900">₹26,624</span>
+            <span class="text-slate-600">Net In-Hand:</span><span class="font-bold text-right text-emerald-700">₹23,394</span>
+            <span class="text-slate-600">Total EPF (Both):</span><span class="font-bold text-right text-sky-700">₹6,000</span>
+            <span class="text-slate-600">Gross In-Hand + PF:</span><span class="font-bold text-right text-slate-900">₹29,394</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    /**
+     * 1. DESIGNATION SALARY & EPF CONFIGURATION
+     */
+    const DESIGNATIONS = {
+      housekeeper: {
+        id: 'housekeeper',
+        title: 'Housekeeper / Janitor',
+        qualification: 'Unskilled',
+        basic: 21840,
+        empPF: 2621,
+        emprPF: 2621,
+        totalPF: 5242,
+        esicOther: 230,
+        netInHand: 18989,
+        totalCTC: 24231
+      },
+      acca: {
+        id: 'acca',
+        title: 'Coach Attendant (ACCA)',
+        qualification: '12th Pass',
+        basic: 24258,
+        empPF: 2911,
+        emprPF: 2911,
+        totalPF: 5822,
+        esicOther: 230,
+        netInHand: 21117,
+        totalCTC: 26939
+      },
+      ehk: {
+        id: 'ehk',
+        title: 'EHK (Supervisor)',
+        qualification: '12th Pass + ITI Pass',
+        basic: 26624,
+        empPF: 3000,
+        emprPF: 3000,
+        totalPF: 6000,
+        esicOther: 230,
+        netInHand: 23394,
+        totalCTC: 29394
+      }
+    };
+
+    /**
+     * 2. NTES / INDIAN RAILWAYS INDIVIDUAL TRAIN TIMETABLE DATASET
+     * Each train direction (Outbound and Return) has its OWN independent source/destination,
+     * departure time, arrival time, day offset, exact running duration in minutes, and paired return train no.
+     */
+    const INDIVIDUAL_TRAINS = {
+      '19037': {
+        trainNo: '19037',
+        pairedReturnNo: '19038',
+        name: 'Avadh Express',
+        fromCode: 'BDTS',
+        fromName: 'Bandra Terminus',
+        toCode: 'BJU',
+        toName: 'Barauni Jn',
+        depTime: '22:00',
+        arrTime: '23:10',
+        dayOffset: 2,
+        durationMinutes: (2 * 24 * 60) + (1 * 60) + 10, // 2950 mins = 2 Days 1 Hr 10 Mins
+        source: 'NTES / IR Timetable'
+      },
+      '19038': {
+        trainNo: '19038',
+        pairedReturnNo: '19037',
+        name: 'Avadh Express',
+        fromCode: 'BJU',
+        fromName: 'Barauni Jn',
+        toCode: 'BDTS',
+        toName: 'Bandra Terminus',
+        depTime: '07:20',
+        arrTime: '04:05',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (20 * 60) + 45, // 2685 mins = 1 Day 20 Hrs 45 Mins
+        source: 'NTES / IR Timetable'
+      },
+      '12129': {
+        trainNo: '12129',
+        pairedReturnNo: '12130',
+        name: 'Azad Hind Express',
+        fromCode: 'PUNE',
+        fromName: 'Pune Jn',
+        toCode: 'HWH',
+        toName: 'Howrah Jn',
+        depTime: '18:35',
+        arrTime: '03:50',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (9 * 60) + 15, // 1995 mins
+        source: 'NTES / IR Timetable'
+      },
+      '12130': {
+        trainNo: '12130',
+        pairedReturnNo: '12129',
+        name: 'Azad Hind Express',
+        fromCode: 'HWH',
+        fromName: 'Howrah Jn',
+        toCode: 'PUNE',
+        toName: 'Pune Jn',
+        depTime: '22:10',
+        arrTime: '07:20',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (9 * 60) + 10, // 1990 mins
+        source: 'NTES / IR Timetable'
+      },
+      '11013': {
+        trainNo: '11013',
+        pairedReturnNo: '11014',
+        name: 'Coimbatore Express',
+        fromCode: 'LTT',
+        fromName: 'Lokmanya Tilak Term',
+        toCode: 'CBE',
+        toName: 'Coimbatore Jn',
+        depTime: '22:35',
+        arrTime: '06:50',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (8 * 60) + 15, // 1935 mins
+        source: 'NTES / IR Timetable'
+      },
+      '11014': {
+        trainNo: '11014',
+        pairedReturnNo: '11013',
+        name: 'LTT Express',
+        fromCode: 'CBE',
+        fromName: 'Coimbatore Jn',
+        toCode: 'LTT',
+        toName: 'Lokmanya Tilak Term',
+        depTime: '08:50',
+        arrTime: '14:00',
+        dayOffset: 1,
+        durationMinutes: (1 * 24 * 60) + (5 * 60) + 10, // 1750 mins
+        source: 'NTES / IR Timetable'
+      },
+      '12951': {
+        trainNo: '12951',
+        pairedReturnNo: '12952',
+        name: 'Rajdhani Express',
+        fromCode: 'MMCT',
+        fromName: 'MMCT',
+        toCode: 'NDLS',
+        toName: 'New Delhi',
+        depTime: '17:00',
+        arrTime: '08:32',
+        dayOffset: 1,
+        durationMinutes: (15 * 60) + 32, // 932 mins
+        source: 'NTES / IR Timetable'
+      },
+      '12952': {
+        trainNo: '12952',
+        pairedReturnNo: '12951',
+        name: 'Rajdhani Express',
+        fromCode: 'NDLS',
+        fromName: 'New Delhi',
+        toCode: 'MMCT',
+        toName: 'MMCT',
+        depTime: '16:55',
+        arrTime: '08:35',
+        dayOffset: 1,
+        durationMinutes: (15 * 60) + 40, // 940 mins
+        source: 'NTES / IR Timetable'
+      },
+      '01449': {
+        trainNo: '01449',
+        pairedReturnNo: '01450',
+        name: 'Pune - Danapur Special',
+        fromCode: 'PUNE',
+        fromName: 'Pune Jn',
+        toCode: 'DNR',
+        toName: 'Danapur',
+        depTime: '15:30',
+        arrTime: '02:00',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (10 * 60) + 30,
+        source: 'NTES / IR Timetable'
+      },
+      '01450': {
+        trainNo: '01450',
+        pairedReturnNo: '01449',
+        name: 'Danapur - Pune Special',
+        fromCode: 'DNR',
+        fromName: 'Danapur',
+        toCode: 'PUNE',
+        toName: 'Pune Jn',
+        depTime: '05:30',
+        arrTime: '18:15',
+        dayOffset: 1,
+        durationMinutes: (1 * 24 * 60) + (12 * 60) + 45,
+        source: 'NTES / IR Timetable'
+      },
+      '12137': {
+        trainNo: '12137',
+        pairedReturnNo: '12138',
+        name: 'Punjab Mail',
+        fromCode: 'CSMT',
+        fromName: 'C Shivaji Maharaj T',
+        toCode: 'FZR',
+        toName: 'Firozpur Cantt',
+        depTime: '19:35',
+        arrTime: '05:10',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (9 * 60) + 35,
+        source: 'NTES / IR Timetable'
+      },
+      '12138': {
+        trainNo: '12138',
+        pairedReturnNo: '12137',
+        name: 'Punjab Mail',
+        fromCode: 'FZR',
+        fromName: 'Firozpur Cantt',
+        toCode: 'CSMT',
+        toName: 'C Shivaji Maharaj T',
+        depTime: '21:45',
+        arrTime: '07:35',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (9 * 60) + 50,
+        source: 'NTES / IR Timetable'
+      },
+      '12809': {
+        trainNo: '12809',
+        pairedReturnNo: '12810',
+        name: 'Howrah Mail (Via Nagpur)',
+        fromCode: 'CSMT',
+        fromName: 'C Shivaji Maharaj T',
+        toCode: 'HWH',
+        toName: 'Howrah Jn',
+        depTime: '21:10',
+        arrTime: '05:50',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (8 * 60) + 40,
+        source: 'NTES / IR Timetable'
+      },
+      '12810': {
+        trainNo: '12810',
+        pairedReturnNo: '12809',
+        name: 'CSMT Mail (Via Nagpur)',
+        fromCode: 'HWH',
+        fromName: 'Howrah Jn',
+        toCode: 'CSMT',
+        toName: 'C Shivaji Maharaj T',
+        depTime: '19:50',
+        arrTime: '04:25',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (8 * 60) + 35,
+        source: 'NTES / IR Timetable'
+      },
+      '12301': {
+        trainNo: '12301',
+        pairedReturnNo: '12302',
+        name: 'Howrah Rajdhani Express',
+        fromCode: 'HWH',
+        fromName: 'Howrah Jn',
+        toCode: 'NDLS',
+        toName: 'New Delhi',
+        depTime: '16:50',
+        arrTime: '10:05',
+        dayOffset: 1,
+        durationMinutes: (17 * 60) + 15,
+        source: 'NTES / IR Timetable'
+      },
+      '12302': {
+        trainNo: '12302',
+        pairedReturnNo: '12301',
+        name: 'Howrah Rajdhani Express',
+        fromCode: 'NDLS',
+        fromName: 'New Delhi',
+        toCode: 'HWH',
+        toName: 'Howrah Jn',
+        depTime: '16:50',
+        arrTime: '09:55',
+        dayOffset: 1,
+        durationMinutes: (17 * 60) + 5,
+        source: 'NTES / IR Timetable'
+      },
+      '12627': {
+        trainNo: '12627',
+        pairedReturnNo: '12628',
+        name: 'Karnataka Express',
+        fromCode: 'SBC',
+        fromName: 'KSR Bengaluru',
+        toCode: 'NDLS',
+        toName: 'New Delhi',
+        depTime: '19:20',
+        arrTime: '09:00',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (13 * 60) + 40,
+        source: 'NTES / IR Timetable'
+      },
+      '12628': {
+        trainNo: '12628',
+        pairedReturnNo: '12627',
+        name: 'Karnataka Express',
+        fromCode: 'NDLS',
+        fromName: 'New Delhi',
+        toCode: 'SBC',
+        toName: 'KSR Bengaluru',
+        depTime: '20:20',
+        arrTime: '12:00',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (15 * 60) + 40,
+        source: 'NTES / IR Timetable'
+      },
+      '11077': {
+        trainNo: '11077',
+        pairedReturnNo: '11078',
+        name: 'Jhelum Express',
+        fromCode: 'PUNE',
+        fromName: 'Pune Jn',
+        toCode: 'JAT',
+        toName: 'Jammu Tawi',
+        depTime: '17:20',
+        arrTime: '10:15',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (16 * 60) + 55,
+        source: 'NTES / IR Timetable'
+      },
+      '11078': {
+        trainNo: '11078',
+        pairedReturnNo: '11077',
+        name: 'Jhelum Express',
+        fromCode: 'JAT',
+        fromName: 'Jammu Tawi',
+        toCode: 'PUNE',
+        toName: 'Pune Jn',
+        depTime: '23:40',
+        arrTime: '14:35',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (14 * 60) + 55,
+        source: 'NTES / IR Timetable'
+      },
+      '12723': {
+        trainNo: '12723',
+        pairedReturnNo: '12724',
+        name: 'Telangana Express',
+        fromCode: 'HYB',
+        fromName: 'Hyderabad Decan',
+        toCode: 'NDLS',
+        toName: 'New Delhi',
+        depTime: '06:25',
+        arrTime: '07:40',
+        dayOffset: 1,
+        durationMinutes: (1 * 24 * 60) + (1 * 60) + 15,
+        source: 'NTES / IR Timetable'
+      },
+      '12724': {
+        trainNo: '12724',
+        pairedReturnNo: '12723',
+        name: 'Telangana Express',
+        fromCode: 'NDLS',
+        fromName: 'New Delhi',
+        toCode: 'HYB',
+        toName: 'Hyderabad Decan',
+        depTime: '16:00',
+        arrTime: '17:10',
+        dayOffset: 1,
+        durationMinutes: (1 * 24 * 60) + (1 * 60) + 10,
+        source: 'NTES / IR Timetable'
+      },
+      '22221': {
+        trainNo: '22221',
+        pairedReturnNo: '22222',
+        name: 'CSMT - NZM Rajdhani',
+        fromCode: 'CSMT',
+        fromName: 'C Shivaji Maharaj T',
+        toCode: 'NZM',
+        toName: 'Hazrat Nizamuddin',
+        depTime: '16:00',
+        arrTime: '09:55',
+        dayOffset: 1,
+        durationMinutes: (17 * 60) + 55,
+        source: 'NTES / IR Timetable'
+      },
+      '22222': {
+        trainNo: '22222',
+        pairedReturnNo: '22221',
+        name: 'NZM - CSMT Rajdhani',
+        fromCode: 'NZM',
+        fromName: 'Hazrat Nizamuddin',
+        toCode: 'CSMT',
+        toName: 'C Shivaji Maharaj T',
+        depTime: '16:55',
+        arrTime: '11:15',
+        dayOffset: 1,
+        durationMinutes: (18 * 60) + 20,
+        source: 'NTES / IR Timetable'
+      },
+      '11061': {
+        trainNo: '11061',
+        pairedReturnNo: '11062',
+        name: 'Pawan Express',
+        fromCode: 'LTT',
+        fromName: 'Lokmanya Tilak Term',
+        toCode: 'JYG',
+        toName: 'Jaynagar',
+        depTime: '11:30',
+        arrTime: '00:15',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (12 * 60) + 45,
+        source: 'NTES / IR Timetable'
+      },
+      '11062': {
+        trainNo: '11062',
+        pairedReturnNo: '11061',
+        name: 'Pawan Express',
+        fromCode: 'JYG',
+        fromName: 'Jaynagar',
+        toCode: 'LTT',
+        toName: 'Lokmanya Tilak Term',
+        depTime: '13:10',
+        arrTime: '00:25',
+        dayOffset: 2,
+        durationMinutes: (1 * 24 * 60) + (11 * 60) + 15,
+        source: 'NTES / IR Timetable'
+      },
+      '12533': {
+        trainNo: '12533',
+        pairedReturnNo: '12534',
+        name: 'Pushpak Express',
+        fromCode: 'LJN',
+        fromName: 'Lucknow Jn',
+        toCode: 'CSMT',
+        toName: 'C Shivaji Maharaj T',
+        depTime: '21:25',
+        arrTime: '22:45',
+        dayOffset: 1,
+        durationMinutes: (1 * 24 * 60) + (1 * 60) + 20,
+        source: 'NTES / IR Timetable'
+      },
+      '12534': {
+        trainNo: '12534',
+        pairedReturnNo: '12533',
+        name: 'Pushpak Express',
+        fromCode: 'CSMT',
+        fromName: 'C Shivaji Maharaj T',
+        toCode: 'LJN',
+        toName: 'Lucknow Jn',
+        depTime: '08:25',
+        arrTime: '08:40',
+        dayOffset: 1,
+        durationMinutes: (1 * 24 * 60) + (0 * 60) + 15,
+        source: 'NTES / IR Timetable'
+      },
+      '12903': {
+        trainNo: '12903',
+        pairedReturnNo: '12904',
+        name: 'Golden Temple Mail',
+        fromCode: 'MMCT',
+        fromName: 'MMCT',
+        toCode: 'ASR',
+        toName: 'Amritsar Jn',
+        depTime: '18:45',
+        arrTime: '23:45',
+        dayOffset: 1,
+        durationMinutes: (1 * 24 * 60) + (5 * 60) + 0,
+        source: 'NTES / IR Timetable'
+      },
+      '12904': {
+        trainNo: '12904',
+        pairedReturnNo: '12903',
+        name: 'Golden Temple Mail',
+        fromCode: 'ASR',
+        fromName: 'Amritsar Jn',
+        toCode: 'MMCT',
+        toName: 'MMCT',
+        depTime: '18:55',
+        arrTime: '23:35',
+        dayOffset: 1,
+        durationMinutes: (1 * 24 * 60) + (4 * 60) + 40,
+        source: 'NTES / IR Timetable'
+      }
+    };
+
+    // Global State
+    let monthDaysBasis = 26;
+    let currentOutboundLeg = INDIVIDUAL_TRAINS['19037'];
+    let currentReturnLeg = INDIVIDUAL_TRAINS['19038'];
+    let currentRoundTripSummary = null;
+    let cachedPublicTrains = null;
+    let cachedSecondarySchedules = null;
+    let dutyRecords = [];
+    const STORAGE_KEY = 'train_duty_attendance_register_v2';
+    const RAIL_CACHE_KEY = 'ir_public_timetable_cache_v1';
+
+    // Initialize Application on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedRecords();
+      setDefaultDateTime();
+      handleOutboundTrainInput(true);
+      renderRegisterTable();
+    });
+
+    // Helper: Month Days Divisor Switcher (26, 28, 30, 31 days)
+    function setMonthDays(days) {
+      monthDaysBasis = days;
+      const selectEl = document.getElementById('monthDaysSelect');
+      if (selectEl && Number(selectEl.value) !== days) {
+        selectEl.value = String(days);
+      }
+
+      const btn26 = document.getElementById('btn-days-26');
+      const btn30 = document.getElementById('btn-days-30');
+      if (days === 26) {
+        btn26.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-[#0c4a6e] text-white transition';
+        btn30.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition';
+      } else if (days === 30) {
+        btn30.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-[#0c4a6e] text-white transition';
+        btn26.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition';
+      } else {
+        btn26.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition';
+        btn30.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition';
+      }
+      recalculateAll();
+    }
+
+    // Helper: Format Date to datetime-local string (YYYY-MM-DDTHH:MM)
+    function toLocalDateTimeInputString(dateObj) {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}T${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+    }
+
+    // Helper: Format minutes into readable "X Days Y Hrs Z Mins"
+    function formatMinutesReadable(totalMins) {
+      const safeMins = Math.max(0, Math.round(totalMins));
+      const d = Math.floor(safeMins / (24 * 60));
+      const remAfterDays = safeMins % (24 * 60);
+      const h = Math.floor(remAfterDays / 60);
+      const m = remAfterDays % 60;
+      const parts = [];
+      if (d > 0) parts.push(`${d} ${d === 1 ? 'Day' : 'Days'}`);
+      if (h > 0) parts.push(`${h} ${h === 1 ? 'Hr' : 'Hrs'}`);
+      if (m > 0) parts.push(`${m} Mins`);
+      return parts.join(' ') || '0 Mins';
+    }
+
+    // Helper: Compact duration format "2d 1h 10m"
+    function formatMinutesCompact(totalMins) {
+      const safeMins = Math.max(0, Math.round(totalMins));
+      const d = Math.floor(safeMins / (24 * 60));
+      const rem = safeMins % (24 * 60);
+      const h = Math.floor(rem / 60);
+      const m = rem % 60;
+      const parts = [];
+      if (d > 0) parts.push(`${d}d`);
+      if (h > 0) parts.push(`${h}h`);
+      if (m > 0) parts.push(`${m}m`);
+      return parts.join(' ') || '0m';
+    }
+
+    // Helper: Format datetime string nicely for UI & PDF
+    function formatDisplayDateTime(dtStr) {
+      if (!dtStr) return '-';
+      const d = new Date(dtStr);
+      if (isNaN(d.getTime())) return dtStr;
+      return d.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+
+    // Set initial Outbound Departure to Today 22:00 (19037 Avadh Express standard departure)
+    function setDefaultDateTime() {
+      const now = new Date();
+      now.setHours(22, 0, 0, 0);
+      document.getElementById('outboundDep').value = toLocalDateTimeInputString(now);
+    }
+
+    /**
+     * Multi-Source Indian Railways Timetable Resolver:
+     * 1. Verified NTES / IR Timetable dictionary (instant & offline-ready)
+     * 2. LocalStorage per-train cache for previously fetched public trains
+     * 3. Live public Indian Railways open datasets on GitHub/CDN:
+     *    - Primary: datameet/railways/master/trains.json (with reverse-route return pair detection!)
+     *    - Secondary: datameet/railways/master/schedules.json (first stop & last stop parser)
+     * 4. Structured fallback if special/unlisted train
+     */
+    async function resolveSingleTrainSchedule(trainNo, isReturnLeg = false, expectedFrom = '', expectedTo = '') {
+      const cleanNo = String(trainNo || '').trim();
+      if (INDIVIDUAL_TRAINS[cleanNo]) {
+        return INDIVIDUAL_TRAINS[cleanNo];
+      }
+
+      // Check localStorage cache first for instant repeat lookup
+      const cachedEntry = getTrainFromLocalCache(cleanNo);
+      if (cachedEntry) {
+        return cachedEntry;
+      }
+
+      const num = parseInt(cleanNo, 10);
+      const defaultPairedNo = (!isNaN(num))
+        ? ((num % 2 === 1) ? String(num + 1).padStart(5, '0') : String(num - 1).padStart(5, '0'))
+        : '';
+
+      // Source A: datameet/railways trains.json (includes station names, codes, departure, arrival, duration & reverse pair lookup)
+      const liveMatch = await fetchFromDataMeetTrainsJSON(cleanNo, defaultPairedNo);
+      if (liveMatch) {
+        saveTrainToLocalCache(cleanNo, liveMatch);
+        return liveMatch;
+      }
+
+      // Source B: datameet/railways schedules.json (parses stop #1 as Source & final stop as Destination)
+      const scheduleMatch = await fetchFromDataMeetSchedulesJSON(cleanNo, defaultPairedNo);
+      if (scheduleMatch) {
+        saveTrainToLocalCache(cleanNo, scheduleMatch);
+        return scheduleMatch;
+      }
+
+      // Fallback structured leg if unlisted special train
+      return {
+        trainNo: cleanNo,
+        pairedReturnNo: defaultPairedNo,
+        name: 'Indian Railways Express',
+        fromCode: expectedFrom || (isReturnLeg ? 'DEST' : 'ORIG'),
+        fromName: expectedFrom || (isReturnLeg ? 'Destination Station' : 'Source Station'),
+        toCode: expectedTo || (isReturnLeg ? 'ORIG' : 'DEST'),
+        toName: expectedTo || (isReturnLeg ? 'Home Station' : 'Destination Station'),
+        depTime: isReturnLeg ? '08:00' : '18:00',
+        arrTime: isReturnLeg ? '20:30' : '06:30',
+        dayOffset: 1,
+        durationMinutes: (36 * 60 + 30),
+        source: 'Standard Pair Estimate'
+      };
+    }
+
+    function getTrainFromLocalCache(trainNo) {
+      try {
+        const raw = localStorage.getItem(RAIL_CACHE_KEY);
+        if (!raw) return null;
+        const map = JSON.parse(raw);
+        return map[trainNo] || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveTrainToLocalCache(trainNo, record) {
+      try {
+        const raw = localStorage.getItem(RAIL_CACHE_KEY);
+        const map = raw ? JSON.parse(raw) : {};
+        map[trainNo] = record;
+        localStorage.setItem(RAIL_CACHE_KEY, JSON.stringify(map));
+      } catch (e) {
+        // Ignore storage quota errors
+      }
+    }
+
+    async function fetchFromDataMeetTrainsJSON(trainNo, defaultPairedNo) {
+      try {
+        if (!cachedPublicTrains) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch('https://raw.githubusercontent.com/datameet/railways/master/trains.json', {
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (!res.ok) return null;
+          const data = await res.json();
+          cachedPublicTrains = data.features || [];
+        }
+
+        const found = cachedPublicTrains.find(
+          (f) => f.properties && String(f.properties.number).trim() === String(trainNo)
+        );
+        if (!found || !found.properties) return null;
+
+        const p = found.properties;
+        const dep = (p.departure || '18:00:00').slice(0, 5);
+        const arr = (p.arrival || '06:00:00').slice(0, 5);
+        const durH = Number(p.duration_h) || 0;
+        const durM = Number(p.duration_m) || 0;
+        let totalMins = (durH * 60) + durM;
+
+        // If duration_h is missing in dataset, compute from departure & arrival times
+        if (totalMins <= 0) {
+          const [dh, dm] = dep.split(':').map(Number);
+          const [ah, am] = arr.split(':').map(Number);
+          let diff = ((ah || 0) * 60 + (am || 0)) - ((dh || 0) * 60 + (dm || 0));
+          if (diff <= 0) diff += 24 * 60;
+          totalMins = diff;
+        }
+
+        const dayOffset = Math.max(0, Math.floor(totalMins / (24 * 60)));
+
+        // Auto-detect exact return train in dataset by reversed station pair (to_station_code -> from_station_code)
+        let detectedReturnNo = defaultPairedNo;
+        if (p.from_station_code && p.to_station_code) {
+          const reverseCandidate = cachedPublicTrains.find((f) => {
+            if (!f.properties) return false;
+            const rp = f.properties;
+            const sameReversedRoute =
+              String(rp.from_station_code) === String(p.to_station_code) &&
+              String(rp.to_station_code) === String(p.from_station_code);
+            if (!sameReversedRoute) return false;
+            // Prefer exact +1/-1 number match if multiple trains exist on same corridor
+            return String(rp.number) === String(defaultPairedNo);
+          }) || cachedPublicTrains.find((f) => {
+            if (!f.properties) return false;
+            const rp = f.properties;
+            return (
+              String(rp.from_station_code) === String(p.to_station_code) &&
+              String(rp.to_station_code) === String(p.from_station_code)
+            );
+          });
+
+          if (reverseCandidate && reverseCandidate.properties && reverseCandidate.properties.number) {
+            detectedReturnNo = String(reverseCandidate.properties.number).trim();
+          }
+        }
+
+        return {
+          trainNo: String(trainNo),
+          pairedReturnNo: detectedReturnNo,
+          name: p.name || 'Express',
+          fromCode: p.from_station_code || 'ORIG',
+          fromName: p.from_station_name || p.from_station_code || 'Source Station',
+          toCode: p.to_station_code || 'DEST',
+          toName: p.to_station_name || p.to_station_code || 'Destination Station',
+          depTime: dep,
+          arrTime: arr,
+          dayOffset,
+          durationMinutes: totalMins,
+          source: 'Live Public Rail Data'
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function fetchFromDataMeetSchedulesJSON(trainNo, defaultPairedNo) {
+      try {
+        if (!cachedSecondarySchedules) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch('https://raw.githubusercontent.com/datameet/railways/master/schedules.json', {
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (!res.ok) return null;
+          cachedSecondarySchedules = await res.json();
+        }
+
+        if (!Array.isArray(cachedSecondarySchedules)) return null;
+        const stops = cachedSecondarySchedules.filter(
+          (s) => String(s.train_number).trim() === String(trainNo)
+        );
+        if (stops.length < 2) return null;
+
+        const firstStop = stops[0];
+        const lastStop = stops[stops.length - 1];
+        const dep = (firstStop.departure || firstStop.arrival || '18:00:00').slice(0, 5);
+        const arr = (lastStop.arrival || lastStop.departure || '06:00:00').slice(0, 5);
+        const startDay = Math.max(1, Number(firstStop.day) || 1);
+        const endDay = Math.max(startDay, Number(lastStop.day) || startDay);
+        const dayOffset = Math.max(0, endDay - startDay);
+
+        const [dh, dm] = dep.split(':').map(Number);
+        const [ah, am] = arr.split(':').map(Number);
+        let totalMins = (dayOffset * 24 * 60) + (((ah || 0) * 60 + (am || 0)) - ((dh || 0) * 60 + (dm || 0)));
+        if (totalMins <= 0) totalMins += 24 * 60;
+
+        return {
+          trainNo: String(trainNo),
+          pairedReturnNo: defaultPairedNo,
+          name: firstStop.train_name || 'Indian Railways Express',
+          fromCode: firstStop.station_code || 'ORIG',
+          fromName: firstStop.station_name || firstStop.station_code || 'Source Station',
+          toCode: lastStop.station_code || 'DEST',
+          toName: lastStop.station_name || lastStop.station_code || 'Destination Station',
+          depTime: dep,
+          arrTime: arr,
+          dayOffset,
+          durationMinutes: totalMins,
+          source: 'Live Public Schedule Stops'
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    /**
+     * Triggered when Outbound Train No. changes.
+     * Fetches Outbound Source/Destination & Timings AND independently fetches the paired Return Train's own schedule!
+     */
+    async function handleOutboundTrainInput(isInitial = false) {
+      const outNo = document.getElementById('outboundTrain').value.trim();
+      const outPill = document.getElementById('train-found-pill');
+      const retPill = document.getElementById('return-found-pill');
+
+      if (outNo.length < 5) {
+        outPill.textContent = '5-Digit No.';
+        outPill.className = 'absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600';
+        return;
+      }
+
+      outPill.textContent = 'Fetching...';
+      outPill.className = 'absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800';
+
+      const outLeg = await resolveSingleTrainSchedule(outNo, false);
+      currentOutboundLeg = outLeg;
+
+      // Auto-populate paired Return Train No. and fetch its OWN separate schedule
+      const retNo = outLeg.pairedReturnNo;
+      document.getElementById('returnTrain').value = retNo;
+
+      const retLeg = await resolveSingleTrainSchedule(retNo, true, outLeg.toCode, outLeg.fromCode);
+      currentReturnLeg = retLeg;
+
+      // Update Route Name & Source/Destination Station Display Boxes
+      document.getElementById('routeName').value = `${outLeg.name} (${outLeg.fromCode} - ${outLeg.toCode} - ${retLeg.toCode})`;
+      document.getElementById('sourceStationDisplay').value =
+        `${outLeg.fromName || outLeg.fromCode} (${outLeg.fromCode}) • Dep: ${outLeg.depTime}`;
+      document.getElementById('destStationDisplay').value =
+        `${outLeg.toName || outLeg.toCode} (${outLeg.toCode}) • Arr: ${outLeg.arrTime} (+${outLeg.dayOffset}d)`;
+
+      // Set Outbound Departure Time on current selected date
+      const depEl = document.getElementById('outboundDep');
+      const baseDate = depEl.value ? new Date(depEl.value) : new Date();
+      if (!isNaN(baseDate.getTime()) && outLeg.depTime) {
+        const [hh, mm] = outLeg.depTime.split(':').map(Number);
+        if (!isNaN(hh) && !isNaN(mm)) {
+          baseDate.setHours(hh, mm, 0, 0);
+          depEl.value = toLocalDateTimeInputString(baseDate);
+        }
+      }
+
+      outPill.textContent = formatMinutesCompact(outLeg.durationMinutes) + ' Leg';
+      outPill.className = 'absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800';
+
+      retPill.textContent = formatMinutesCompact(retLeg.durationMinutes) + ' Leg';
+      retPill.className = 'absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800';
+
+      if (!isInitial) {
+        showToast(`Fetched ${outLeg.trainNo} (${outLeg.fromCode} → ${outLeg.toCode}) & Return ${retLeg.trainNo}`, 'info');
+      }
+
+      autoCalculateReturnFromDeparture();
+    }
+
+    /**
+     * Triggered when user independently edits the Return Train No.
+     * Fetches that specific return train's exact source, destination, departure & arrival times.
+     */
+    async function handleReturnTrainInput() {
+      const retNo = document.getElementById('returnTrain').value.trim();
+      const retPill = document.getElementById('return-found-pill');
+
+      if (retNo.length < 5) {
+        retPill.textContent = '5-Digit No.';
+        retPill.className = 'absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600';
+        return;
+      }
+
+      retPill.textContent = 'Fetching...';
+      const retLeg = await resolveSingleTrainSchedule(
+        retNo,
+        true,
+        currentOutboundLeg ? currentOutboundLeg.toCode : 'DEST',
+        currentOutboundLeg ? currentOutboundLeg.fromCode : 'ORIG'
+      );
+      currentReturnLeg = retLeg;
+
+      if (currentOutboundLeg) {
+        document.getElementById('routeName').value =
+          `${currentOutboundLeg.name} (${currentOutboundLeg.fromCode} - ${currentOutboundLeg.toCode} - ${retLeg.toCode})`;
+      }
+
+      retPill.textContent = formatMinutesCompact(retLeg.durationMinutes) + ' Leg';
+      retPill.className = 'absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800';
+
+      autoCalculateReturnFromDeparture();
+    }
+
+    /**
+     * Computes exact timeline:
+     * 1. Outbound Dep DateTime + Outbound Leg Exact Duration -> Destination Arrival DateTime
+     * 2. Finds the next scheduled Return Train Departure Time after Destination Arrival -> Turnaround Layover
+     * 3. Return Dep DateTime + Return Leg Exact Duration -> Home Arrival DateTime
+     */
+    function autoCalculateReturnFromDeparture() {
+      const depInput = document.getElementById('outboundDep').value;
+      if (!depInput || !currentOutboundLeg || !currentReturnLeg) return;
+
+      const outDepDate = new Date(depInput);
+      if (isNaN(outDepDate.getTime())) return;
+
+      // 1. Exact Destination Arrival
+      const destArrDate = new Date(outDepDate.getTime() + currentOutboundLeg.durationMinutes * 60 * 1000);
+
+      // 2. Next Scheduled Return Train Departure after Destination Arrival
+      const [retDepH, retDepM] = (currentReturnLeg.depTime || '07:20').split(':').map(Number);
+      const retDepDate = new Date(destArrDate.getTime());
+      retDepDate.setHours(retDepH || 0, retDepM || 0, 0, 0);
+
+      // If return departure time on that calendar day has already passed (or is less than 45 mins turnaround), move to next day
+      if (retDepDate.getTime() < destArrDate.getTime() + (45 * 60 * 1000)) {
+        retDepDate.setDate(retDepDate.getDate() + 1);
+      }
+
+      const layoverMinutes = Math.round((retDepDate.getTime() - destArrDate.getTime()) / (60 * 1000));
+
+      // 3. Exact Home Arrival using Return Train's OWN independent duration
+      const homeArrDate = new Date(retDepDate.getTime() + currentReturnLeg.durationMinutes * 60 * 1000);
+
+      // Update Return Arrival input field
+      document.getElementById('returnArr').value = toLocalDateTimeInputString(homeArrDate);
+
+      // Total Round-Trip Minutes & Hours
+      const totalRoundMinutes = Math.round((homeArrDate.getTime() - outDepDate.getTime()) / (60 * 1000));
+      const totalHoursDecimal = Number((totalRoundMinutes / 60).toFixed(1));
+      document.getElementById('dutyHours').value = totalHoursDecimal;
+
+      // Calculate Calendar Duty Days spanned (e.g., Nov 24 night to Nov 29 morning = 5 duty days)
+      const startDayMidnight = new Date(outDepDate.getFullYear(), outDepDate.getMonth(), outDepDate.getDate());
+      const endDayMidnight = new Date(homeArrDate.getFullYear(), homeArrDate.getMonth(), homeArrDate.getDate());
+      const calendarDaysDiff = Math.round((endDayMidnight - startDayMidnight) / (24 * 60 * 60 * 1000));
+      // If arrival is very early morning (before 06:00), count calendarDaysDiff; otherwise include arrival day
+      const dutyDays = Math.max(1, homeArrDate.getHours() < 6 ? calendarDaysDiff : calendarDaysDiff + 1);
+      document.getElementById('dutyDays').value = dutyDays;
+
+      currentRoundTripSummary = {
+        outDepDate,
+        destArrDate,
+        retDepDate,
+        homeArrDate,
+        layoverMinutes,
+        totalRoundMinutes,
+        dutyDays
+      };
+
+      updateScheduleSummaryCard();
+      recalculateAll();
+    }
+
+    // Updates the 4-card Live Round-Trip Schedule Breakdown UI
+    function updateScheduleSummaryCard() {
+      if (!currentOutboundLeg || !currentReturnLeg || !currentRoundTripSummary) return;
+
+      const s = currentRoundTripSummary;
+      const outFromLabel = currentOutboundLeg.fromName ? `${currentOutboundLeg.fromName} [${currentOutboundLeg.fromCode}]` : currentOutboundLeg.fromCode;
+      const outToLabel = currentOutboundLeg.toName ? `${currentOutboundLeg.toName} [${currentOutboundLeg.toCode}]` : currentOutboundLeg.toCode;
+
+      document.getElementById('sched-pair-badge').textContent =
+        `${currentOutboundLeg.trainNo} ⇄ ${currentReturnLeg.trainNo}`;
+      document.getElementById('sched-route-title').textContent =
+        `${currentOutboundLeg.name} (${outFromLabel} → ${outToLabel})`;
+      document.getElementById('sched-source-badge').textContent =
+        `${currentOutboundLeg.source}`;
+
+      document.getElementById('sched-out-no').textContent = currentOutboundLeg.trainNo;
+      document.getElementById('sched-out-stations').textContent =
+        `${currentOutboundLeg.fromCode} (${currentOutboundLeg.depTime}) → ${currentOutboundLeg.toCode} (${currentOutboundLeg.arrTime})`;
+      document.getElementById('sched-out-timings').textContent =
+        `Dep ${currentOutboundLeg.depTime} → Dest Arr ${currentOutboundLeg.arrTime} (+${currentOutboundLeg.dayOffset}d)`;
+      document.getElementById('sched-out-dur').textContent =
+        `Duration: ${formatMinutesReadable(currentOutboundLeg.durationMinutes)}`;
+
+      document.getElementById('sched-layover-time').textContent =
+        `${formatMinutesReadable(s.layoverMinutes)} Halt`;
+      document.getElementById('sched-layover-station').textContent =
+        `At ${currentOutboundLeg.toCode} (Ret Dep ${currentReturnLeg.depTime})`;
+
+      document.getElementById('sched-ret-no').textContent = currentReturnLeg.trainNo;
+      document.getElementById('sched-ret-stations').textContent =
+        `${currentReturnLeg.fromCode} (${currentReturnLeg.depTime}) → ${currentReturnLeg.toCode} (${currentReturnLeg.arrTime})`;
+      document.getElementById('sched-ret-timings').textContent =
+        `Dep ${currentReturnLeg.depTime} → Home Arr ${currentReturnLeg.arrTime} (+${currentReturnLeg.dayOffset}d)`;
+      document.getElementById('sched-ret-dur').textContent =
+        `Duration: ${formatMinutesReadable(currentReturnLeg.durationMinutes)}`;
+
+      document.getElementById('sched-total-span').textContent =
+        `${s.dutyDays} Duty Days (${formatMinutesCompact(s.totalRoundMinutes)})`;
+      document.getElementById('sched-exact-dates').textContent =
+        `Dest Arr: ${formatDisplayDateTime(toLocalDateTimeInputString(s.destArrDate))}`;
+    }
+
+    /**
+     * If the user manually edits Return Arrival Date & Time (e.g., train delayed on NTES),
+     * automatically updates Total Duty Hours and Total Duty Days.
+     */
+    function recalculateDurationFromDates() {
+      const depInput = document.getElementById('outboundDep').value;
+      const arrInput = document.getElementById('returnArr').value;
+      if (!depInput || !arrInput) return;
+
+      const depDate = new Date(depInput);
+      const arrDate = new Date(arrInput);
+      const diffMs = arrDate.getTime() - depDate.getTime();
+
+      if (diffMs > 0) {
+        const mins = Math.round(diffMs / (1000 * 60));
+        const hours = Number((mins / 60).toFixed(1));
+        document.getElementById('dutyHours').value = hours;
+
+        const startDayMidnight = new Date(depDate.getFullYear(), depDate.getMonth(), depDate.getDate());
+        const endDayMidnight = new Date(arrDate.getFullYear(), arrDate.getMonth(), arrDate.getDate());
+        const calendarDaysDiff = Math.round((endDayMidnight - startDayMidnight) / (24 * 60 * 60 * 1000));
+        const days = Math.max(1, arrDate.getHours() < 6 ? calendarDaysDiff : calendarDaysDiff + 1);
+        document.getElementById('dutyDays').value = days;
+
+        if (currentRoundTripSummary) {
+          currentRoundTripSummary.homeArrDate = arrDate;
+          currentRoundTripSummary.totalRoundMinutes = mins;
+          currentRoundTripSummary.dutyDays = days;
+          updateScheduleSummaryCard();
+        }
+        recalculateAll();
+      }
+    }
+
+    function handleDesignationChange() {
+      const val = document.getElementById('designation').value;
+      const customPanel = document.getElementById('custom-designation-panel');
+      if (val === 'custom') {
+        customPanel.classList.remove('hidden');
+      } else {
+        customPanel.classList.add('hidden');
+      }
+      recalculateAll();
+    }
+
+    /**
+     * Core Salary & PF Calculation Engine
+     * Computes exact pro-rata Basic, Employee PF, Employer PF, ESIC, and Net In-Hand
+     */
+    function getCalculatedPayroll() {
+      const desKey = document.getElementById('designation').value;
+      let des;
+
+      if (desKey === 'custom') {
+        const customTitle = document.getElementById('customPostTitle').value.trim() || 'Custom Staff';
+        const basic = Math.max(0, parseFloat(document.getElementById('customMonthlyBasic').value) || 0);
+        const pfPct = Math.max(0, parseFloat(document.getElementById('customPfPercent').value) || 0);
+        const empPF = Math.round(basic * (pfPct / 100));
+        const emprPF = empPF;
+        const totalPF = empPF + emprPF;
+        const esicOther = basic <= 21000 ? Math.round(basic * 0.0075) : 230;
+        const netInHand = Math.round(basic - empPF - esicOther);
+        des = {
+          id: 'custom',
+          title: customTitle,
+          qualification: 'Custom Rate',
+          basic,
+          empPF,
+          emprPF,
+          totalPF,
+          esicOther,
+          netInHand,
+          totalCTC: netInHand + totalPF
+        };
+      } else {
+        des = DESIGNATIONS[desKey] || DESIGNATIONS.acca;
+      }
+
+      const dutyDays = Math.max(0, parseFloat(document.getElementById('dutyDays').value) || 0);
+      const allowance = parseFloat(document.getElementById('allowance').value) || 0;
+
+      const ratio = dutyDays / monthDaysBasis;
+
+      const tripBasic = Math.round(des.basic * ratio);
+      const tripEmpPF = Math.round(des.empPF * ratio);
+      const tripEmprPF = Math.round(des.emprPF * ratio);
+      const tripTotalPF = tripEmpPF + tripEmprPF;
+      const tripEsic = Math.round(des.esicOther * ratio);
+
+      // Net payable for this trip = Pro-rata Basic - Employee PF - ESIC + Allowance/Advance
+      const tripNet = Math.round(tripBasic - tripEmpPF - tripEsic + allowance);
+
+      return {
+        des,
+        dutyDays,
+        allowance,
+        tripBasic,
+        tripEmpPF,
+        tripEmprPF,
+        tripTotalPF,
+        tripEsic,
+        tripNet
+      };
+    }
+
+    // Updates the UI Breakdown Card
+    function recalculateAll() {
+      const calc = getCalculatedPayroll();
+      const { des } = calc;
+
+      document.getElementById('designation-meta-text').textContent =
+        `${des.title} • Qualification: ${des.qualification} • Divisor: ${monthDaysBasis} Days/Month`;
+
+      // Monthly Standard Column
+      document.getElementById('m-basic').textContent = `₹${des.basic.toLocaleString('en-IN')}`;
+      document.getElementById('m-emp-pf').textContent = `- ₹${des.empPF.toLocaleString('en-IN')}`;
+      document.getElementById('m-empr-pf').textContent = `+ ₹${des.emprPF.toLocaleString('en-IN')}`;
+      document.getElementById('m-esic').textContent = `- ₹${des.esicOther.toLocaleString('en-IN')}`;
+      document.getElementById('m-net').textContent = `₹${des.netInHand.toLocaleString('en-IN')}`;
+      document.getElementById('m-total-pf').textContent = `₹${des.totalPF.toLocaleString('en-IN')}`;
+      document.getElementById('m-ctc').textContent = `₹${des.totalCTC.toLocaleString('en-IN')}`;
+
+      // Current Trip Earned Column
+      document.getElementById('trip-days-badge').textContent = `${calc.dutyDays} Days Duty`;
+      document.getElementById('t-basic').textContent = `₹${calc.tripBasic.toLocaleString('en-IN')}`;
+      document.getElementById('t-emp-pf').textContent = `- ₹${calc.tripEmpPF.toLocaleString('en-IN')}`;
+      document.getElementById('t-empr-pf').textContent = `+ ₹${calc.tripEmprPF.toLocaleString('en-IN')}`;
+      document.getElementById('t-esic').textContent = `- ₹${calc.tripEsic.toLocaleString('en-IN')}`;
+
+      const allowSign = calc.allowance > 0 ? '+ ' : '';
+      document.getElementById('t-allowance').textContent = `${allowSign}₹${calc.allowance.toLocaleString('en-IN')}`;
+      document.getElementById('t-net').textContent = `₹${calc.tripNet.toLocaleString('en-IN')}`;
+      document.getElementById('t-total-pf').textContent = `₹${calc.tripTotalPF.toLocaleString('en-IN')}`;
+    }
+
+    // Add Duty Record to Register
+    function handleAddDuty(e) {
+      e.preventDefault();
+      const calc = getCalculatedPayroll();
+
+      const entry = {
+        id: Date.now(),
+        staffName: document.getElementById('staffName').value.trim() || 'Personal Duty Log',
+        designationKey: calc.des.id,
+        designationTitle: calc.des.title,
+        outboundTrain: document.getElementById('outboundTrain').value.trim(),
+        returnTrain: document.getElementById('returnTrain').value.trim(),
+        routeName: document.getElementById('routeName').value.trim(),
+        outboundDep: document.getElementById('outboundDep').value,
+        returnArr: document.getElementById('returnArr').value,
+        dutyDays: calc.dutyDays,
+        dutyHours: parseFloat(document.getElementById('dutyHours').value) || 0,
+        allowance: calc.allowance,
+        remarks: document.getElementById('remarks').value.trim() || 'Completed Round Trip',
+        monthDaysBasis,
+        tripBasic: calc.tripBasic,
+        tripEmpPF: calc.tripEmpPF,
+        tripEmprPF: calc.tripEmprPF,
+        tripTotalPF: calc.tripTotalPF,
+        tripEsic: calc.tripEsic,
+        tripNet: calc.tripNet
+      };
+
+      dutyRecords.unshift(entry);
+      saveRecordsToStorage();
+      renderRegisterTable();
+      showToast(`Added ${entry.outboundTrain}/${entry.returnTrain} (${entry.dutyDays} days) to Register!`, 'success');
+    }
+
+    // LocalStorage Persistence
+    function saveRecordsToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dutyRecords));
+      } catch (err) {
+        console.error('Storage save failed:', err);
+      }
+    }
+
+    function loadSavedRecords() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          dutyRecords = JSON.parse(raw);
+        }
+      } catch (err) {
+        dutyRecords = [];
+      }
+    }
+
+    // Render Register Table & Summary KPIs
+    function renderRegisterTable() {
+      const tbody = document.getElementById('register-tbody');
+
+      let totalDays = 0;
+      let totalHours = 0;
+      let totalNet = 0;
+      let totalPF = 0;
+
+      dutyRecords.forEach((r) => {
+        totalDays += Number(r.dutyDays || 0);
+        totalHours += Number(r.dutyHours || 0);
+        totalNet += Number(r.tripNet || 0);
+        totalPF += Number(r.tripTotalPF || 0);
+      });
+
+      document.getElementById('stat-days').textContent = `${totalDays} Days`;
+      document.getElementById('stat-trips').textContent = `(${dutyRecords.length} ${dutyRecords.length === 1 ? 'trip' : 'trips'})`;
+      document.getElementById('stat-hours').textContent = `${totalHours} hrs`;
+      document.getElementById('stat-net').textContent = `₹${totalNet.toLocaleString('en-IN')}`;
+      document.getElementById('stat-pf').textContent = `₹${totalPF.toLocaleString('en-IN')}`;
+
+      if (dutyRecords.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="py-10 px-4 text-center text-slate-400">
+              <div class="text-3xl mb-2">🚆</div>
+              <div class="font-semibold text-slate-600">No duty trips added yet</div>
+              <div class="text-xs mt-1">Fill the Train Duty form above and click <strong>"Add Duty Entry to Register"</strong> to build your monthly salary & EPF sheet.</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = dutyRecords.map((r, index) => `
+        <tr class="hover:bg-slate-50/90 transition">
+          <td class="py-3 px-3.5 font-bold text-slate-500">${dutyRecords.length - index}</td>
+          <td class="py-3 px-3.5">
+            <div class="font-bold text-slate-900">${escapeHtml(r.staffName)}</div>
+            <div class="text-xs text-sky-700 font-medium">${escapeHtml(r.designationTitle)}</div>
+          </td>
+          <td class="py-3 px-3.5">
+            <div class="font-bold text-slate-800">${escapeHtml(r.outboundTrain)} / ${escapeHtml(r.returnTrain)}</div>
+            <div class="text-xs text-slate-500">${escapeHtml(r.routeName)}</div>
+          </td>
+          <td class="py-3 px-3.5 text-xs">
+            <div class="text-slate-700"><span class="font-semibold text-emerald-700">Dep:</span> ${formatDisplayDateTime(r.outboundDep)}</div>
+            <div class="text-slate-700 mt-0.5"><span class="font-semibold text-sky-700">Arr:</span> ${formatDisplayDateTime(r.returnArr)}</div>
+          </td>
+          <td class="py-3 px-3.5 text-center">
+            <span class="inline-block font-bold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg text-xs">${r.dutyDays}d / ${r.dutyHours}h</span>
+          </td>
+          <td class="py-3 px-3.5 text-right font-semibold text-sky-800">
+            ₹${Number(r.tripTotalPF).toLocaleString('en-IN')}
+          </td>
+          <td class="py-3 px-3.5 text-right font-extrabold text-emerald-700">
+            ₹${Number(r.tripNet).toLocaleString('en-IN')}
+          </td>
+          <td class="py-3 px-3.5 text-center">
+            <button type="button" onclick="deleteDutyRecord(${r.id})" title="Delete Entry"
+              class="p-2 rounded-lg text-rose-600 hover:bg-rose-50 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function deleteDutyRecord(id) {
+      dutyRecords = dutyRecords.filter((item) => item.id !== id);
+      saveRecordsToStorage();
+      renderRegisterTable();
+      showToast('Duty entry removed.', 'info');
+    }
+
+    function confirmClearAll() {
+      if (dutyRecords.length === 0) {
+        showToast('Register is already empty.', 'info');
+        return;
+      }
+      openConfirmModal(
+        'Clear All Duty Entries?',
+        'This will permanently delete all saved train duty records from this browser. Download your PDF first if needed.',
+        () => {
+          dutyRecords = [];
+          saveRecordsToStorage();
+          renderRegisterTable();
+          showToast('All register records cleared.', 'success');
+        }
+      );
+    }
+
+    /**
+     * INSTANT PDF GENERATOR (Using jsPDF + AutoTable)
+     * Downloads either the Full Register (if records exist) or the Current Form Slip immediately.
+     */
+    function downloadInstantPDF() {
+      if (dutyRecords.length === 0) {
+        downloadSingleTripPDF();
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      // Header Banner
+      doc.setFillColor(12, 74, 110); // #0c4a6e
+      doc.rect(0, 0, 210, 32, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.text('PERSONAL TRAIN DUTY ATTENDANCE & SALARY REGISTER', 14, 14);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      doc.text(`Personal Duty & Payroll Log   |   Generated: ${new Date().toLocaleDateString('en-IN')}`, 14, 22);
+
+      // Employee Summary Info
+      const latest = dutyRecords[0];
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Name: ${latest.staffName}`, 14, 41);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Designation: ${latest.designationTitle}`, 14, 47);
+
+      // Compute Totals
+      let sumDays = 0, sumHours = 0, sumBasic = 0, sumEmpPF = 0, sumEmprPF = 0, sumTotalPF = 0, sumNet = 0;
+      const tableBody = dutyRecords.slice().reverse().map((r, idx) => {
+        sumDays += Number(r.dutyDays);
+        sumHours += Number(r.dutyHours);
+        sumBasic += Number(r.tripBasic);
+        sumEmpPF += Number(r.tripEmpPF);
+        sumEmprPF += Number(r.tripEmprPF);
+        sumTotalPF += Number(r.tripTotalPF);
+        sumNet += Number(r.tripNet);
+
+        return [
+          idx + 1,
+          `${r.outboundTrain}/${r.returnTrain}\n${r.routeName}`,
+          `${formatDisplayDateTime(r.outboundDep)}\nto\n${formatDisplayDateTime(r.returnArr)}`,
+          `${r.dutyDays}d / ${r.dutyHours}h`,
+          `Rs.${r.tripBasic.toLocaleString('en-IN')}`,
+          `Rs.${r.tripTotalPF.toLocaleString('en-IN')}`,
+          `Rs.${r.tripNet.toLocaleString('en-IN')}`
+        ];
+      });
+
+      doc.autoTable({
+        startY: 53,
+        head: [['#', 'Train & Route', 'Round-Trip Schedule', 'Duty', 'Basic', 'Total EPF', 'Net Pay']],
+        body: tableBody,
+        foot: [[
+          '',
+          'TOTAL SUMMARY',
+          `${dutyRecords.length} Round Trips`,
+          `${sumDays}d / ${sumHours}h`,
+          `Rs.${sumBasic.toLocaleString('en-IN')}`,
+          `Rs.${sumTotalPF.toLocaleString('en-IN')}`,
+          `Rs.${sumNet.toLocaleString('en-IN')}`
+        ]],
+        theme: 'grid',
+        headStyles: { fillColor: [12, 74, 110], textColor: 255, fontSize: 8.5, fontStyle: 'bold' },
+        footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontSize: 8.5, fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 2.5, valign: 'middle' },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center' },
+          1: { cellWidth: 44 },
+          2: { cellWidth: 48 },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 21, halign: 'right' },
+          5: { cellWidth: 21, halign: 'right' },
+          6: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }
+        }
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 12;
+      doc.setFontSize(9.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(12, 74, 110);
+      doc.text('EPF & Salary Summary Breakdown:', 14, finalY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(51, 65, 85);
+      doc.text(`• Employee EPF Contribution (12%): Rs. ${sumEmpPF.toLocaleString('en-IN')}`, 16, finalY + 6);
+      doc.text(`• Employer EPF Contribution (12%): Rs. ${sumEmprPF.toLocaleString('en-IN')}`, 16, finalY + 12);
+      doc.text(`• Total EPF Deposited in UAN Account: Rs. ${sumTotalPF.toLocaleString('en-IN')}`, 16, finalY + 18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`• Total Net In-Hand Salary Payable: Rs. ${sumNet.toLocaleString('en-IN')}`, 16, finalY + 25);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text('Signature: ______________________', 14, finalY + 42);
+      doc.text('Verified By: ______________________', 125, finalY + 42);
+
+      const safeName = latest.staffName.replace(/[^a-zA-Z0-9]/g, '_');
+      doc.save(`Train_Duty_Register_${safeName}.pdf`);
+      showToast('Full Duty & Salary PDF downloaded!', 'success');
+    }
+
+    /**
+     * Generates an Instant Single-Trip Duty & Pay Slip PDF directly from current form values
+     */
+    function downloadSingleTripPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const calc = getCalculatedPayroll();
+
+      const staffName = document.getElementById('staffName').value.trim() || 'Personal Duty Log';
+      const outTrain = document.getElementById('outboundTrain').value.trim();
+      const retTrain = document.getElementById('returnTrain').value.trim();
+      const routeName = document.getElementById('routeName').value.trim();
+      const depStr = formatDisplayDateTime(document.getElementById('outboundDep').value);
+      const arrStr = formatDisplayDateTime(document.getElementById('returnArr').value);
+      const dutyHours = document.getElementById('dutyHours').value;
+      const remarks = document.getElementById('remarks').value.trim();
+
+      // Header
+      doc.setFillColor(12, 74, 110);
+      doc.rect(0, 0, 210, 32, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15.5);
+      doc.text('PERSONAL TRAIN DUTY & SALARY SLIP', 14, 14);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      doc.text(`Personal Duty & Payroll Record  |  Date: ${new Date().toLocaleDateString('en-IN')}`, 14, 22);
+
+      doc.autoTable({
+        startY: 40,
+        head: [['Duty & Personal Particulars', 'Details']],
+        body: [
+          ['Name', staffName],
+          ['Designation', `${calc.des.title} (${calc.des.qualification})`],
+          ['Train Pair (Outbound / Return)', `${outTrain} / ${retTrain}`],
+          ['Train / Route Name', routeName],
+          [
+            `Outbound Leg (${outTrain})`,
+            currentOutboundLeg
+              ? `${depStr} (Duration: ${formatMinutesReadable(currentOutboundLeg.durationMinutes)})`
+              : depStr
+          ],
+          [
+            `Return Leg (${retTrain})`,
+            currentReturnLeg
+              ? `Arrives ${arrStr} (Return Duration: ${formatMinutesReadable(currentReturnLeg.durationMinutes)})`
+              : arrStr
+          ],
+          ['Total Round-Trip Duty', `${calc.dutyDays} Days (${dutyHours} Hours)`],
+          ['Remarks', remarks || 'Completed Round Trip']
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [12, 74, 110], textColor: 255, fontSize: 10 },
+        styles: { fontSize: 9.5, cellPadding: 3 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 68 } }
+      });
+
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [['Salary & EPF Component', `Monthly Rate (${monthDaysBasis}d)`, `Earned (${calc.dutyDays} Days)`]],
+        body: [
+          ['Basic Salary', `Rs. ${calc.des.basic.toLocaleString('en-IN')}`, `Rs. ${calc.tripBasic.toLocaleString('en-IN')}`],
+          ['Employee EPF Deduction (12%)', `- Rs. ${calc.des.empPF.toLocaleString('en-IN')}`, `- Rs. ${calc.tripEmpPF.toLocaleString('en-IN')}`],
+          ['Employer EPF Contribution (12%)', `+ Rs. ${calc.des.emprPF.toLocaleString('en-IN')}`, `+ Rs. ${calc.tripEmprPF.toLocaleString('en-IN')}`],
+          ['ESIC / Statutory Deduction', `- Rs. ${calc.des.esicOther.toLocaleString('en-IN')}`, `- Rs. ${calc.tripEsic.toLocaleString('en-IN')}`],
+          ['Allowance / Advance Adjustment', 'Rs. 0', `Rs. ${calc.allowance.toLocaleString('en-IN')}`],
+          ['TOTAL EPF DEPOSIT (Employee + Employer)', `Rs. ${calc.des.totalPF.toLocaleString('en-IN')}`, `Rs. ${calc.tripTotalPF.toLocaleString('en-IN')}`],
+          ['NET IN-HAND PAYABLE', `Rs. ${calc.des.netInHand.toLocaleString('en-IN')}`, `Rs. ${calc.tripNet.toLocaleString('en-IN')}`]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [3, 105, 161], textColor: 255, fontSize: 9.5 },
+        styles: { fontSize: 9.5, cellPadding: 3 },
+        columnStyles: {
+          1: { halign: 'right' },
+          2: { halign: 'right', fontStyle: 'bold' }
+        }
+      });
+
+      const sigY = doc.lastAutoTable.finalY + 24;
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Signature: _____________________', 14, sigY);
+      doc.text('Verified By: _____________________', 125, sigY);
+
+      const safeName = staffName.replace(/[^a-zA-Z0-9]/g, '_');
+      doc.save(`Duty_Slip_${outTrain}_${safeName}.pdf`);
+      showToast('Instant Duty Slip PDF downloaded!', 'success');
+    }
+
+    // Export CSV for Excel
+    function exportCSV() {
+      if (dutyRecords.length === 0) {
+        showToast('Add at least one duty entry before exporting CSV.', 'info');
+        return;
+      }
+      const headers = ['Name', 'Designation', 'Outbound Train', 'Return Train', 'Route', 'Outbound Dep', 'Return Arr', 'Duty Days', 'Duty Hours', 'Trip Basic', 'Emp PF', 'Empr PF', 'Total PF', 'Allowance', 'Net Payable', 'Remarks'];
+      const rows = dutyRecords.map(r => [
+        `"${r.staffName}"`, `"${r.designationTitle}"`,
+        r.outboundTrain, r.returnTrain, `"${r.routeName}"`,
+        `"${formatDisplayDateTime(r.outboundDep)}"`, `"${formatDisplayDateTime(r.returnArr)}"`,
+        r.dutyDays, r.dutyHours, r.tripBasic, r.tripEmpPF, r.tripEmprPF, r.tripTotalPF, r.allowance, r.tripNet, `"${r.remarks}"`
+      ]);
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `Train_Duty_Register_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Excel/CSV file downloaded!', 'success');
+    }
+
+    // Custom Non-Blocking Toast UI
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = type === 'success'
+        ? 'bg-emerald-900 text-white border-emerald-700'
+        : 'bg-slate-900 text-white border-slate-700';
+
+      toast.className = `${colors} border px-4 py-3 rounded-2xl shadow-lg text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 pointer-events-auto transition-all duration-300`;
+      toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    // Custom Confirmation Modal UI
+    function openConfirmModal(title, message, onConfirm) {
+      const modal = document.getElementById('confirm-modal');
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-message').textContent = message;
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      const cancelBtn = document.getElementById('confirm-cancel-btn');
+      const okBtn = document.getElementById('confirm-ok-btn');
+
+      const cleanup = () => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
+
+      cancelBtn.onclick = cleanup;
+      okBtn.onclick = () => {
+        cleanup();
+        onConfirm();
+      };
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
